@@ -1,6 +1,6 @@
 #include "Core.h"
-#include <SDL_image.h>
-#include <SDL_mixer.h>
+#include "imgui/imgui_impl_sdl2.h"
+#include "imgui/imgui_impl_sdlrenderer.h"
 #include <cassert>
 #include <array>
 
@@ -26,9 +26,17 @@ struct App
 	bool running = false;
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
+	GuiCallback guiCallback = nullptr;
+	void* guiData = nullptr;
 
 	array<Uint8, SDL_NUM_SCANCODES> keyboard{};
 } gApp;
+
+void SetGuiCallback(GuiCallback callback, void* data)
+{
+	gApp.guiCallback = callback;
+	gApp.guiData = data;
+}
 
 void AppInit(int width, int height)
 {
@@ -36,10 +44,17 @@ void AppInit(int width, int height)
 	assert(gApp.window == nullptr);
 	assert(gApp.renderer == nullptr);
 
-	SDL_Init(SDL_INIT_EVERYTHING);
-	IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+	assert(SDL_Init(SDL_INIT_EVERYTHING) == 0);
+	assert(Mix_OpenAudio(48000, AUDIO_S16SYS, 2, 2048) == 0);
+	assert(IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) == IMG_INIT_PNG | IMG_INIT_JPG);
 	gApp.window = SDL_CreateWindow("Fundamentals 2 Framework", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, 0);
 	gApp.renderer = SDL_CreateRenderer(gApp.window, -1, 0);
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplSDL2_InitForSDLRenderer(gApp.window, gApp.renderer);
+	ImGui_ImplSDLRenderer_Init(gApp.renderer);
 
 	gTime.previous = TotalTime();
 	gApp.running = true;
@@ -50,9 +65,14 @@ void AppExit()
 	assert(gApp.window != nullptr);
 	assert(gApp.renderer != nullptr);
 
+	ImGui_ImplSDLRenderer_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
+
 	SDL_DestroyRenderer(gApp.renderer);
 	SDL_DestroyWindow(gApp.window);
 	IMG_Quit();
+	Mix_Quit();
 	SDL_Quit();
 
 	gApp.running = false;
@@ -63,6 +83,7 @@ void PollEvents()
 	SDL_Event event;
 	while (SDL_PollEvent(&event))
 	{
+		ImGui_ImplSDL2_ProcessEvent(&event);
 		switch (event.type)
 		{
 		case SDL_QUIT:
@@ -87,6 +108,14 @@ void RenderBegin()
 
 void RenderEnd()
 {
+	ImGui_ImplSDLRenderer_NewFrame();
+	ImGui_ImplSDL2_NewFrame();
+	ImGui::NewFrame();
+	//ImGui::ShowDemoWindow();
+	if (gApp.guiCallback != nullptr) gApp.guiCallback(gApp.guiData);
+	ImGui::Render();
+	ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
+
 	gTime.current = TotalTime();
 	gTime.render = gTime.current - gTime.previous;
 	gTime.previous = gTime.current;
@@ -125,6 +154,46 @@ Texture* LoadTexture(const char* path)
 void UnloadTexture(Texture* texture)
 {
 	SDL_DestroyTexture(texture);
+}
+
+Sound* LoadSound(const char* path)
+{
+	return Mix_LoadWAV(path);
+}
+
+void UnloadSound(Sound* sound)
+{
+	Mix_FreeChunk(sound);
+}
+
+void PlaySound(Sound* sound, bool loop)
+{
+	Mix_PlayChannel(-1, sound, loop ? -1 : 0);
+}
+
+Music* LoadMusic(const char* path)
+{
+	return Mix_LoadMUS(path);
+}
+
+void UnloadMusic(Music* music)
+{
+	Mix_FreeMusic(music);
+}
+
+void PlayMusic(Music* music, bool loop)
+{
+	Mix_PlayMusic(music, loop ? -1 : 0);
+}
+
+void PauseMusic()
+{
+	Mix_PauseMusic();
+}
+
+void ResumeMusic()
+{
+	Mix_ResumeMusic();
 }
 
 int GetFps()
