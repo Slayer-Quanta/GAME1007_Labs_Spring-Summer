@@ -29,7 +29,8 @@ struct App
 	GuiCallback guiCallback = nullptr;
 	void* guiData = nullptr;
 
-	array<Uint8, SDL_NUM_SCANCODES> keyboard{};
+	array<Uint8, SDL_NUM_SCANCODES> keyboardCurrent{};
+	array<Uint8, SDL_NUM_SCANCODES> keyboardPrevious{};
 } gApp;
 
 void SetGuiCallback(GuiCallback callback, void* data)
@@ -92,7 +93,8 @@ void PollEvents()
 		}
 	}
 
-	memcpy(gApp.keyboard.data(), SDL_GetKeyboardState(nullptr), SDL_NUM_SCANCODES);
+	memcpy(gApp.keyboardPrevious.data(), gApp.keyboardCurrent.data(), SDL_NUM_SCANCODES);
+	memcpy(gApp.keyboardCurrent.data(), SDL_GetKeyboardState(nullptr), SDL_NUM_SCANCODES);
 	if (IsKeyDown(SDL_SCANCODE_ESCAPE)) gApp.running = false;
 }
 
@@ -235,7 +237,12 @@ bool IsRunning()
 
 bool IsKeyDown(SDL_Scancode key)
 {
-	return gApp.keyboard[key] == 1;
+	return gApp.keyboardCurrent[key] == 1;
+}
+
+bool IsKeyPressed(SDL_Scancode key)
+{
+	return gApp.keyboardCurrent[key] > gApp.keyboardPrevious[key];
 }
 
 void DrawRect(const Rect& rect, const Color& color)

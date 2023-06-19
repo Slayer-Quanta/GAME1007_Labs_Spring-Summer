@@ -3,11 +3,10 @@
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 #include "imgui/imgui.h"
+#include "Math.h"
 
 using Texture = SDL_Texture;
-using Rect = SDL_FRect;
 using Color = SDL_Color;
-using Point = SDL_FPoint;
 using Sound = Mix_Chunk;
 using Music = Mix_Music;
 using GuiCallback = void(*)(void*);
@@ -44,6 +43,7 @@ void Wait(double seconds);	// Halts the program for seconds
 
 bool IsRunning();
 bool IsKeyDown(SDL_Scancode key);
+bool IsKeyPressed(SDL_Scancode key);
 
 void DrawRect(const Rect& rect, const Color& color);
 void DrawTexture(Texture* texture, const Rect& rect, double degrees = 0.0f);
