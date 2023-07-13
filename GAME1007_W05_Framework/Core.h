@@ -17,10 +17,13 @@ void AppInit(int width, int height);
 void AppExit();
 
 void RenderBegin();
+
 void RenderEnd();
 
 Texture* LoadTexture(const char* path);
 void UnloadTexture(Texture* texture);
+void Tint(Texture* texture, const Color& color);
+void BlendMode(SDL_BlendMode mode);
 
 Sound* LoadSound(const char* path);
 void UnloadSound(Sound* sound);
@@ -44,6 +47,8 @@ void Wait(double seconds);	// Halts the program for seconds
 bool IsRunning();
 bool IsKeyDown(SDL_Scancode key);
 bool IsKeyPressed(SDL_Scancode key);
+Point MousePosition();
 
+void DrawLine(const Point& start, const Point& end, const Color& color);
 void DrawRect(const Rect& rect, const Color& color);
-void DrawTexture(Texture* texture, const Rect& rect, double degrees = 0.0f);
+void DrawTexture(Texture* texture, const Rect& rect, float degrees = 0.0f);

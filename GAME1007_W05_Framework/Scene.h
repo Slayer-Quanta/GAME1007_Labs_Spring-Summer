@@ -4,10 +4,7 @@
 #include <vector>
 constexpr int SCREEN_WIDTH = 1024;
 constexpr int SCREEN_HEIGHT = 768;
-
-void OnTitleGui(void* data);
-void OnGameGui(void* data);
-void OnLab1BGui(void* data);
+constexpr Rect SCREEN = { 0.0f, 0.0f, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
 
 class Scene
 {
@@ -25,10 +22,10 @@ public:
 	{
 		TITLE,
 		GAME,
-		LAB_1A,
-		LAB_1B,
-		LAB_2,
+		PAUSE,
+		EXIT,
 		COUNT
+		
 	};
 
 	static void Init();
@@ -56,6 +53,11 @@ public:
 private:
 	Rect mBackRec = { 0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT };
 	Rect mFrontRec = { 0.0f, 0.0f, 60.0f, 40.0f };
+	Texture* mTitleBackgroundTex = nullptr;
+	Texture* mTitleTex = nullptr;
+	Rect mBackgroundRec;
+	Rect mTitleRec;
+	Music* TitleMusic;
 };
 
 class GameScene : public Scene
@@ -69,104 +71,133 @@ public:
 
 	void OnUpdate(float dt) final;
 	void OnRender() final;
+	void ResetGame();
 
 	Texture* mShipTex = nullptr;
 	Rect mShipRec;
 	float mShipSpeed;
-	float mTurretX;  // Turret X position
-	float mTurretY;  // Turret Y position
-
-};
-
-class Lab1AScene : public Scene
-{
-public:
-	Lab1AScene();
-	~Lab1AScene() final;
-
-	void OnUpdate(float dt) final;
-	void OnRender() final;
-
-	Texture* mTexEnterprise = nullptr;
-	Texture* mTexD7 = nullptr;
-
-	struct Ship
+	float mShipRotation;  // Add this line
+	Texture* mShipSpriteSheetTex = nullptr;
+	Texture* mAsteroidTex = nullptr;
+	Texture* mAsteroidClusterTex = nullptr;
+	Texture* mGameBackgroundTex = nullptr;
+	Texture* mBulletTex = nullptr;
+	Sound* mBulletSound;
+	bool mIsFiring;
+	float mBurstTimer;
+	Rect mGameBackgroundRec;
+	Music* GameMusic;
+	struct Timer
 	{
-		Rect rec;
-		Point dir;
-		Texture* tex;
+		float duration = 0.0f;	
+		float elapsed = 0.0f;
+
+		bool Expired() { return elapsed >= duration; }
+		void Reset() { elapsed = 0.0f; }
+		void Tick(float dt) { elapsed += dt; }
+		float Normalize() { return Clamp(elapsed / duration, 0.0f, 1.0f); }
 	};
 
-	std::array<Ship, 6> mShips;
-};
-
-class Lab1BScene : public Scene
-{
-public:
-	Lab1BScene();
-	~Lab1BScene() final;
-
-	void OnEnter() final;
-	void OnExit() final;
-
-	void OnUpdate(float dt) final;
-	void OnRender() final;
-
-private:
-	Sound* mEngine = nullptr;
-	Sound* mExplode = nullptr;
-	Sound* mFire = nullptr;
-	Sound* mTeleport = nullptr;
-	Music* mMusic = nullptr;
-
-	bool mMusicPlaying = false;
-
-	friend void OnLab1BGui(void* data);
-};
-
-class Lab2Scene : public Scene
-{
-public:
-	Lab2Scene();
-	~Lab2Scene() final;
-
-	void OnEnter() final;
-	void OnExit() final;
-
-	void OnUpdate(float dt) final;
-	void OnRender() final;
-
-	Texture* mTexturret = nullptr;
-	Texture* mTexEnemy = nullptr;
-	Texture* mTexBullet = nullptr;
-
-	struct Entity
+	struct Rigidbody
 	{
-		Rect rec;
+		Point position{};
+		Point velocity{};
+		Point acceleration{};
+		Point thrust{};
+		Point Rotation{};
+		Point direction{ 1.0f, 0.0f };
+		float angularSpeed = 0.0f;
 	};
 
-	struct Turret : public Entity
+	struct Entity : public Rigidbody
 	{
-		float cooldown = 1.0f;
-		int kills = 0;
-	};
+		float width = 0.0f;
+		float height = 0.0f;
 
-	struct Enemy : public Entity
-	{
-		float health = 100.0f;
+		Rect Collider() const
+		{
+			return { position.x - width * 0.5f, position.y - height * 0.5f, width, height };
+		}
 	};
 
 	struct Bullet : public Entity
 	{
-		float damage = 10.0f;
-		Point direction;
-		Turret* parent = nullptr;
-		Point velocity;      // New variable for storing the velocity
-		Point acceleration;  // New variable for storing the acceleration
+		float damage = 100.0f;
+		void Draw() const
+		{
+			Color bulletColor = { 255, 0, 0, 255 };
+			DrawRect(Collider(), bulletColor);
+			DrawLine(position, position + direction * 20.0f, bulletColor);
+		}
 	};
 
-	std::vector<Turret> mTurrets;
-	std::vector<Enemy> mEnemies;
-	std::vector<Enemy*> enemiesToRemove;
+	// Add on to this class if necessary
+	struct Asteroid : public Entity
+	{
+		float health = 100.0f;
+		void Draw() const
+		{
+			Color asteroidColor = { 255, 0, 255, 255 };
+			DrawRect(Collider(), asteroidColor);
+			DrawLine(position, position + direction * 20.0f, asteroidColor);
+		}
+	};
+
+	struct Ship : public Entity
+	{
+		float speed = 100.0f;
+		float acceleration;           // Acceleration in the forward direction
+		float sidewaysAcceleration;
+		float rotation;
+		void Draw() const
+		{
+			DrawRect(Collider(), col);
+			DrawTexture(tex, Collider());
+			DrawLine(position, position + direction * 100.0f, col);
+
+		}
+
+		Timer bulletCooldown;
+		Texture* tex = nullptr;
+		Color col{};
+	} mShip;
+
+	Color mTestColor{ 255, 255, 255, 255 };
 	std::vector<Bullet> mBullets;
+	Timer mAsteroidTimer;
+	std::vector<Asteroid> mAsteroids;
+	std::vector<Asteroid> mAsteroidsLarge;
+	std::vector<Asteroid> mAsteroidsMedium;
+	std::vector<Asteroid> mAsteroidsSmall;
+	const float mSizeLarge = 75.0f;
+	const float mSizeMedium = 50.0f;
+	const float mSizeSmall = 25.0f;
+
+	Asteroid SpawnAsteroid(float size);
+	void Wrap(Entity& entity);
+
+};
+
+class PauseScene : public Scene
+{
+public:
+	void OnEnter() final;
+	void OnExit() final;
+
+	void OnUpdate(float dt) final;
+	void OnRender() final;
+
+	Texture* mPauseTex = nullptr;
+	Texture* PauseTex = nullptr;
+	Rect mPauseRec;
+};
+
+class ExitScene : public Scene
+{
+public:
+	void OnEnter() final;
+	void OnExit() final;
+
+	void OnUpdate(float dt) final;
+	void OnRender() final;
 };

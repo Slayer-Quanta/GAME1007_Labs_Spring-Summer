@@ -155,17 +155,8 @@ void OnGui(void* data)
 	}
 }
 
-bool IsOdd(int i) { return ((i % 2) == 1); }
-
 int main(int argc, char* argv[])
 {
-	std::vector<int> numbers = { 1,2,3,4,5,6,7,8,9 };
-	auto eraseStart = remove_if(numbers.begin(), numbers.end(), IsOdd);
-	auto eraseEnd = numbers.end();
-	numbers.erase(eraseStart, eraseEnd);
-	for (int n : numbers)
-		std::cout << n << std::endl;
-
 	AppInit(SCREEN_WIDTH, SCREEN_HEIGHT);
 	Scene::Init();
 	while (IsRunning())
