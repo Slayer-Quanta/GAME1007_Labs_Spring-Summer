@@ -106,7 +106,7 @@ public:
 		Point thrust{};
 		Point Rotation{};
 		Point direction{ 1.0f, 0.0f };
-		float angularSpeed = 0.0f;
+		float angularSpeed = 300.0f;
 	};
 
 	struct Entity : public Rigidbody

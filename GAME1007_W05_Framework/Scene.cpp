@@ -210,9 +210,6 @@ void GameScene::OnUpdate(float dt)
 	mShip.velocity.x *= 0.99f;
 	mShip.velocity.y *= 0.99f;
 	mShip.acceleration = 1000.0f;
-	mShip.sidewaysAcceleration = 800.0f;
-	mShipRotation = 0.0f;  // Initialize ship rotation angle
-
 
 	if (IsKeyDown(SDL_SCANCODE_A))
 	{
@@ -240,18 +237,22 @@ void GameScene::OnUpdate(float dt)
 
 	if (IsKeyDown(SDL_SCANCODE_W))
 	{
-		mShip.direction = Rotate(mShip.direction, -mShip.angularSpeed * dt);
-		Point perpendicular = Point{ mShip.direction.y, -mShip.direction.x };
-		Point sidewaysThrust = perpendicular * mShip.sidewaysAcceleration * dt;
-		mShip.velocity = mShip.velocity + sidewaysThrust;
+		mShip.velocity.y -= mShip.acceleration * dt;
+		float maxSpeed = 800.0f;
+		if (mShip.velocity.y < -maxSpeed)
+		{
+			mShip.velocity.y = -maxSpeed;
+		}
 	}
 
 	if (IsKeyDown(SDL_SCANCODE_S))
 	{
-		mShip.direction = Rotate(mShip.direction, -mShip.angularSpeed * dt);
-		Point perpendicular = Point{ -mShip.direction.y, mShip.direction.x };
-		Point sidewaysThrust = perpendicular * mShip.sidewaysAcceleration * dt;
-		mShip.velocity = mShip.velocity + sidewaysThrust;
+		mShip.velocity.y += mShip.acceleration * dt;
+		float maxSpeed = 800.0f;
+		if (mShip.velocity.y > maxSpeed)
+		{
+			mShip.velocity.y = maxSpeed;
+		}
 	}
 
 	mShip.position = mShip.position + mShip.velocity * dt;
@@ -262,7 +263,29 @@ void GameScene::OnUpdate(float dt)
 	{
 		Scene::Change(Scene::PAUSE);
 	}
+	if (IsKeyDown(SDL_SCANCODE_T))
+	{
+		// Teleport the ship to a safe location
+		const float safeAreaWidth = SCREEN_WIDTH * 0.4f;
+		const float safeAreaHeight = SCREEN_HEIGHT * 0.4f;
+		const float safeAreaOffsetX = (SCREEN_WIDTH - safeAreaWidth) * 0.5f;
+		const float safeAreaOffsetY = (SCREEN_HEIGHT - safeAreaHeight) * 0.5f;
 
+		mShip.position.x = Random(safeAreaOffsetX, safeAreaOffsetX + safeAreaWidth);
+		mShip.position.y = Random(safeAreaOffsetY, safeAreaOffsetY + safeAreaHeight);
+	}
+
+	if (IsKeyDown(SDL_SCANCODE_R))
+	{
+		// Reset the game
+		mShip.position = Point{ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f };
+		mShip.velocity = Point{ 0.0f, 0.0f };
+		mAsteroidsLarge.clear();
+		mAsteroidsMedium.clear();
+		mAsteroidsSmall.clear();
+		mBullets.clear();
+		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge));
+	}
 	bool isFiring = IsKeyDown(SDL_SCANCODE_SPACE);
 	if (isFiring && !mIsFiring && mShip.bulletCooldown.Expired())
 	{
@@ -283,6 +306,7 @@ void GameScene::OnUpdate(float dt)
 	mShip.bulletCooldown.Tick(dt);
 	if (IsKeyDown(SDL_SCANCODE_E))
 	{
+
 		// Rotate the ship clockwise
 		mShipRotation += mShip.angularSpeed * dt;
 	}
@@ -292,6 +316,7 @@ void GameScene::OnUpdate(float dt)
 		// Rotate the ship counterclockwise
 		mShipRotation -= mShip.angularSpeed * dt;
 	}
+	cout << mShipRotation << endl;
 
 
 	for (const Asteroid& asteroid : mAsteroidsLarge)
