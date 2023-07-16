@@ -68,7 +68,6 @@ public:
 
 	void OnEnter() final;
 	void OnExit() final;
-
 	void OnUpdate(float dt) final;
 	void OnRender() final;
 	void ResetGame();
@@ -77,6 +76,7 @@ public:
 	Rect mShipRec;
 	float mShipSpeed;
 	float mShipRotation;  // Add this line
+
 	Texture* mShipSpriteSheetTex = nullptr;
 	Texture* mAsteroidTex = nullptr;
 	Texture* mAsteroidClusterTex = nullptr;
@@ -84,9 +84,9 @@ public:
 	Texture* mBulletTex = nullptr;
 	Sound* mBulletSound;
 	bool mIsFiring;
-	float mBurstTimer;
 	Rect mGameBackgroundRec;
 	Music* GameMusic;
+	Sound* mTeleportSound;
 	struct Timer
 	{
 		float duration = 0.0f;	
@@ -122,8 +122,9 @@ public:
 
 	struct Bullet : public Entity
 	{
+		
 		float damage = 100.0f;
-		void Draw() const
+		void Draw(float shipRotation) const
 		{
 			Color bulletColor = { 255, 0, 0, 255 };
 			DrawRect(Collider(), bulletColor);

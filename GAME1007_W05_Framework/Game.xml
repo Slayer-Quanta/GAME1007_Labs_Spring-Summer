@@ -1,5 +1,5 @@
 <Game>
-    <Ship x="524.34418" y="441.02515" w="50" h="40" speed="200"/>
+    <Ship x="525.46045" y="293.5329" w="50" h="40" speed="200"/>
     <MediumAsteroids/>
     <SmallAsteroids/>
 </Game>

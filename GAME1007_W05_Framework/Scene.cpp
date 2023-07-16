@@ -14,7 +14,7 @@ void Scene::Init()
 {
 	sScenes[TITLE] = new TitleScene;
 	sScenes[GAME] = new GameScene;
-	sScenes[PAUSE] = new PauseScene; 
+	sScenes[PAUSE] = new PauseScene;
 	sScenes[EXIT] = new ExitScene;
 	sScenes[sCurrent]->OnEnter();
 }
@@ -49,7 +49,7 @@ void TitleScene::OnEnter()
 	mBackgroundRec.x = 0.0f;
 	mBackgroundRec.y = 0.0f;
 	mBackgroundRec.w = static_cast<float>(SCREEN_WIDTH);
-	mBackgroundRec.h = static_cast<float>(SCREEN_HEIGHT);
+	mBackgroundRec. h = static_cast<float>(SCREEN_HEIGHT);
 
 	mTitleTex = LoadTexture("../Assets/img/title.png");
 
@@ -115,6 +115,7 @@ void GameScene::OnEnter()
 		Mix_PlayMusic(GameMusic, -1);
 	}
 	mBulletSound = Mix_LoadWAV("../Assets/aud/Ciws .mp3");
+	mTeleportSound = Mix_LoadWAV("../Assets/aud/teleport.wav");
 	XMLDocument doc;
 	if (doc.LoadFile("Game.xml") == XML_SUCCESS)
 	{
@@ -168,6 +169,7 @@ void GameScene::OnExit()
 	Mix_HaltMusic();
 	Mix_FreeMusic(GameMusic);
 	Mix_FreeChunk(mBulletSound);
+	Mix_FreeChunk(mTeleportSound);
 	XMLDocument doc;
 	XMLNode* root = doc.NewElement("Game");
 	doc.InsertEndChild(root);
@@ -220,7 +222,7 @@ void GameScene::OnUpdate(float dt)
 		{
 			mShip.velocity = Normalize(mShip.velocity) * minSpeed;
 		}
-		
+
 	}
 
 	if (IsKeyDown(SDL_SCANCODE_D))
@@ -232,7 +234,7 @@ void GameScene::OnUpdate(float dt)
 		{
 			mShip.velocity = Normalize(mShip.velocity) * maxSpeed;
 		}
-		
+
 	}
 
 	if (IsKeyDown(SDL_SCANCODE_W))
@@ -271,21 +273,59 @@ void GameScene::OnUpdate(float dt)
 		const float safeAreaOffsetX = (SCREEN_WIDTH - safeAreaWidth) * 0.5f;
 		const float safeAreaOffsetY = (SCREEN_HEIGHT - safeAreaHeight) * 0.5f;
 
-		mShip.position.x = Random(safeAreaOffsetX, safeAreaOffsetX + safeAreaWidth);
-		mShip.position.y = Random(safeAreaOffsetY, safeAreaOffsetY + safeAreaHeight);
+		bool isSafeLocation = false;
+		Point teleportLocation;
+
+		while (!isSafeLocation)
+		{
+			teleportLocation.x = Random(safeAreaOffsetX, safeAreaOffsetX + safeAreaWidth);
+			teleportLocation.y = Random(safeAreaOffsetY, safeAreaOffsetY + safeAreaHeight);
+
+			// Check if the teleport location is too close to any asteroids
+			bool isTooClose = false;
+			for (const Asteroid& asteroid : mAsteroidsLarge)
+			{
+				float distance = Distance(teleportLocation, asteroid.position);
+				if (distance < asteroid.width * 2.0f) // Adjust the minimum distance as needed
+				{
+					isTooClose = true;
+					break;
+				}
+			}
+
+			if (!isTooClose)
+			{
+				// The location is safe
+				isSafeLocation = true;
+			}
+		}
+
+		// Smoothly move the ship to the teleport destination over a short duration
+		if (mTeleportSound)
+		{
+			Mix_PlayChannel(-1, mTeleportSound, 0);
+		}
+
+		const float teleportDuration = 0.5f; // Adjust the duration as needed
+		Point initialPosition = mShip.position;
+		Point targetPosition = teleportLocation;
+		float elapsed = 0.0f;
+
+		while (elapsed < teleportDuration)
+		{
+			// Calculate the interpolation factor (0.0 to 1.0) based on the elapsed time
+			float t = elapsed / teleportDuration;
+
+			// Smoothly move the ship towards the teleport destination
+			mShip.position = Lerp(initialPosition, targetPosition, t);
+
+			elapsed += dt;
+		}
+
+		// Set the ship's final position to the teleport destination
+		mShip.position = teleportLocation;
 	}
 
-	if (IsKeyDown(SDL_SCANCODE_R))
-	{
-		// Reset the game
-		mShip.position = Point{ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f };
-		mShip.velocity = Point{ 0.0f, 0.0f };
-		mAsteroidsLarge.clear();
-		mAsteroidsMedium.clear();
-		mAsteroidsSmall.clear();
-		mBullets.clear();
-		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge));
-	}
 	bool isFiring = IsKeyDown(SDL_SCANCODE_SPACE);
 	if (isFiring && !mIsFiring && mShip.bulletCooldown.Expired())
 	{
@@ -294,11 +334,15 @@ void GameScene::OnUpdate(float dt)
 		{
 			Mix_PlayChannel(-1, mBulletSound, 0);
 		}
+		 // Use the ship's rotation angle
+		float bulletRotation = atan2(mShip.direction.y, mShip.direction.x) * RAD2DEG + mShipRotation;
+		Point bulletDirection = Rotate(Point{ 1.0f, 0.0f }, bulletRotation * DEG2RAD);
+
 		Bullet bullet;
 		bullet.width = bullet.height = 10.0f;
 		bullet.position = mShip.position + mShip.direction * sqrtf(powf(mShip.width * 0.5f + bullet.width * 0.5f, 2.0f));
-		bullet.velocity = mShip.direction * 100.0f;
-		bullet.direction = mShip.direction;
+		bullet.velocity = bulletDirection * 800.0f;
+		bullet.direction = bulletDirection;
 		mBullets.push_back(bullet);
 	}
 
@@ -330,6 +374,32 @@ void GameScene::OnUpdate(float dt)
 			return;
 		}
 	}
+
+	for (const Asteroid& asteroid : mAsteroidsMedium)
+	{
+		Rect asteroidRect = asteroid.Collider();
+		Rect shipRect = mShip.Collider();
+
+		if (SDL_HasIntersectionF(&asteroidRect, &shipRect))
+		{
+			ResetGame();
+			return;
+		}
+	}
+
+
+	for (const Asteroid& asteroid : mAsteroidsSmall)
+	{
+		Rect asteroidRect = asteroid.Collider();
+		Rect shipRect = mShip.Collider();
+
+		if (SDL_HasIntersectionF(&asteroidRect, &shipRect))
+		{
+			ResetGame();
+			return;
+		}
+	}
+
 
 	for (Bullet& bullet : mBullets)
 	{
@@ -415,6 +485,7 @@ void GameScene::OnUpdate(float dt)
 	{
 		mAsteroidTimer.Reset();
 		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge));
+		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge)); 
 	}
 	mAsteroidTimer.Tick(dt);
 
@@ -475,34 +546,45 @@ void GameScene::OnUpdate(float dt)
 void GameScene::OnRender()
 {
 	DrawTexture(mGameBackgroundTex, { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT });
+	SDL_SetTextureColorMod(mAsteroidTex, 128, 0, 0);
 
+	// Render the large asteroids with the dark red tint
 	for (const Asteroid& asteroid : mAsteroidsLarge)
 	{
 		float angle = atan2(asteroid.velocity.y, asteroid.velocity.x) * RAD2DEG;
 		DrawTexture(mAsteroidTex, { asteroid.position.x - asteroid.width * 0.5f, asteroid.position.y - asteroid.height * 0.5f, asteroid.width, asteroid.height }, angle);
 	}
 
+	// Set the color modulation for light red (255 for red, 128 for green and blue)
+	SDL_SetTextureColorMod(mAsteroidClusterTex, 255, 128, 128);
+
+	// Render the medium asteroids with the light red tint
 	for (const Asteroid& asteroid : mAsteroidsMedium)
 	{
 		float angle = atan2(asteroid.velocity.y, asteroid.velocity.x) * RAD2DEG;
 		DrawTexture(mAsteroidClusterTex, { asteroid.position.x - asteroid.width * 0.5f, asteroid.position.y - asteroid.height * 0.5f, asteroid.width, asteroid.height }, angle);
 	}
 
+	// Render the small asteroids with the light red tint
 	for (const Asteroid& asteroid : mAsteroidsSmall)
 	{
 		float angle = atan2(asteroid.velocity.y, asteroid.velocity.x) * RAD2DEG;
 		DrawTexture(mAsteroidClusterTex, { asteroid.position.x - asteroid.width * 0.5f, asteroid.position.y - asteroid.height * 0.5f, asteroid.width, asteroid.height }, angle);
 	}
 
+	// Reset the color modulation back to white (255 for all channels)
+	SDL_SetTextureColorMod(mAsteroidTex, 255, 255, 255);
+	SDL_SetTextureColorMod(mAsteroidClusterTex, 255, 255, 255);
+
+
 	for (const Bullet& bullet : mBullets)
-	{
-		DrawTexture(mBulletTex, { bullet.position.x - bullet.width * 0.5f, bullet.position.y - bullet.height * 0.5f, bullet.width, bullet.height });
-	}
+		bullet.Draw(mShipRotation);
 
 	float increasedSize = 1.2f;
 	float shipWidth = mShip.width * increasedSize;
 	float shipHeight = mShip.height * increasedSize;
 	float shipAngle = mShipRotation;  // Use the ship's rotation angle
+
 	DrawTexture(mShipTex, { mShip.position.x - shipWidth * 0.5f, mShip.position.y - shipHeight * 0.5f, shipWidth, shipHeight }, shipAngle);
 }
 
@@ -539,39 +621,32 @@ GameScene::Asteroid GameScene::SpawnAsteroid(float size)
 	Asteroid asteroid;
 	asteroid.width = asteroid.height = size;
 
-	int spawnSide = Random(0, 3);
-	float x = 0.0f, y = 0.0f;
-	switch (spawnSide)
+	// Ensure asteroid isn't spawned on top of player
+	bool collision = true;
+	while (collision)
 	{
-	case 0:
-		x = 0.0f;
-		y = Random(0.0f, static_cast<float>(SCREEN_HEIGHT));
-		break;
-	case 1:
-		x = static_cast<float>(SCREEN_WIDTH);
-		y = Random(0.0f, static_cast<float>(SCREEN_HEIGHT));
-		break;
-	case 2:
-		x = Random(0.0f, static_cast<float>(SCREEN_WIDTH));
-		y = 0.0f;
-		break;
-	case 3:
-		x = Random(0.0f, static_cast<float>(SCREEN_WIDTH));
-		y = static_cast<float>(SCREEN_HEIGHT);
-		break;
+		float x = Random(0.0f, SCREEN_WIDTH - asteroid.width);
+		float y = Random(0.0f, SCREEN_HEIGHT - asteroid.height);
+		asteroid.position = { x, y };
+
+		Rect asteroidRect = asteroid.Collider();
+		Rect shipRect = mShip.Collider();
+		shipRect.w *= 4.0f;
+		shipRect.h *= 4.0f;
+		collision = SDL_HasIntersectionF(&asteroidRect, &shipRect);
 	}
 
-	asteroid.position = { x, y };
-
-	Point toCenter = Normalize(Point{ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f } - asteroid.position);
-	asteroid.velocity = toCenter * Random(20.0f, 200.0f);
+	// Add some variance to asteroid movement by shooting them +- 10 degrees towards the player
+	Point toPlayer = Normalize(mShip.position - asteroid.position);
+	toPlayer = Rotate(toPlayer, Random(-10.0f, 10.0f) * DEG2RAD);
+	asteroid.velocity = toPlayer * Random(20.0f, 200.0f);
 
 	return asteroid;
 }
 
 void PauseScene::OnEnter()
 {
-	mPauseTex = LoadTexture("../Assets/img/Hanger.png"); 
+	mPauseTex = LoadTexture("../Assets/img/Hanger.png");
 	PauseTex = LoadTexture("../Assets/img/Pause.png");
 
 	mPauseRec.x = static_cast<float>(SCREEN_WIDTH) * 0.5f - 200.0f;
