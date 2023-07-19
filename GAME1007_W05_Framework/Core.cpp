@@ -3,6 +3,8 @@
 #include "imgui/imgui_impl_sdlrenderer.h"
 #include <cassert>
 #include <array>
+#include <unordered_map>
+#include "Widgets.h"
 
 using namespace std;
 
@@ -29,7 +31,20 @@ struct App
 	GuiCallback guiCallback = nullptr;
 	void* guiData = nullptr;
 
-	Point mousePosition{};
+	vector<Widget*> widgets;
+
+	// Previous and current mouse positions
+	int mx = 0, my = 0, pmx = 0, pmy = 0;
+	Uint32 mouseStatePrevious = 0;
+	Uint32 mouseStateCurrent = 0;
+	bool leftMouseDown = false;
+	bool rightMouseDown = false;
+	bool middleMouseDown = false;
+	bool leftMouseClicked = false;
+	bool rightMouseClicked = false;
+	bool middleMouseClicked = false;
+	bool mouseMoved = false;
+
 	array<Uint8, SDL_NUM_SCANCODES> keyboardCurrent{};
 	array<Uint8, SDL_NUM_SCANCODES> keyboardPrevious{};
 } gApp;
@@ -49,6 +64,7 @@ void AppInit(int width, int height)
 	assert(SDL_Init(SDL_INIT_EVERYTHING) == 0);
 	assert(Mix_OpenAudio(48000, AUDIO_S16SYS, 2, 2048) == 0);
 	assert(IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) == IMG_INIT_PNG | IMG_INIT_JPG);
+	assert(TTF_Init() == 0);
 	gApp.window = SDL_CreateWindow("Fundamentals 2 Framework", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, 0);
 	gApp.renderer = SDL_CreateRenderer(gApp.window, -1, 0);
 
@@ -73,6 +89,7 @@ void AppExit()
 
 	SDL_DestroyRenderer(gApp.renderer);
 	SDL_DestroyWindow(gApp.window);
+	TTF_Quit();
 	IMG_Quit();
 	Mix_Quit();
 	SDL_Quit();
@@ -89,18 +106,35 @@ void PollEvents()
 		switch (event.type)
 		{
 		case SDL_QUIT:
-			gApp.running = false;
+			Quit();
 			break;
 		}
 	}
 
-	int mx, my;
-	SDL_GetMouseState(&mx, &my);
-	gApp.mousePosition = { (float)mx, (float)my };
-
 	memcpy(gApp.keyboardPrevious.data(), gApp.keyboardCurrent.data(), SDL_NUM_SCANCODES);
 	memcpy(gApp.keyboardCurrent.data(), SDL_GetKeyboardState(nullptr), SDL_NUM_SCANCODES);
-	if (IsKeyDown(SDL_SCANCODE_ESCAPE)) gApp.running = false;
+	if (IsKeyDown(SDL_SCANCODE_ESCAPE)) Quit();
+
+	gApp.pmx = gApp.mx; gApp.pmy = gApp.my;
+	gApp.mouseStatePrevious = gApp.mouseStateCurrent;
+	gApp.mouseStateCurrent = SDL_GetMouseState(&gApp.mx, &gApp.my);
+	gApp.mouseMoved = gApp.mx != gApp.pmx || gApp.my != gApp.pmy;
+
+	gApp.leftMouseDown = gApp.mouseStateCurrent & SDL_BUTTON_LMASK;
+	gApp.rightMouseDown = gApp.mouseStateCurrent & SDL_BUTTON_RMASK;
+	gApp.middleMouseDown = gApp.mouseStateCurrent & SDL_BUTTON_MMASK;
+
+	gApp.leftMouseClicked =
+		(gApp.mouseStateCurrent & SDL_BUTTON_LMASK) <
+		(gApp.mouseStatePrevious & SDL_BUTTON_LMASK);
+
+	gApp.rightMouseClicked =
+		(gApp.mouseStateCurrent & SDL_BUTTON_RMASK) <
+		(gApp.mouseStatePrevious & SDL_BUTTON_RMASK);
+
+	gApp.middleMouseClicked =
+		(gApp.mouseStateCurrent & SDL_BUTTON_MMASK) <
+		(gApp.mouseStatePrevious & SDL_BUTTON_MMASK);
 }
 
 void RenderBegin()
@@ -163,15 +197,30 @@ void UnloadTexture(Texture* texture)
 	SDL_DestroyTexture(texture);
 }
 
+void SetBlendMode(SDL_BlendMode mode)
+{
+	SDL_SetRenderDrawBlendMode(gApp.renderer, mode);
+}
+
+void SetBlendMode(Texture* texture, SDL_BlendMode mode)
+{
+	SDL_SetTextureBlendMode(texture, mode);
+}
+
 void Tint(Texture* texture, const Color& color)
 {
 	SDL_SetTextureColorMod(texture, color.r, color.g, color.b);
 	SDL_SetTextureAlphaMod(texture, color.a);
 }
 
-void BlendMode(SDL_BlendMode mode)
+Font* LoadFont(const char* path, int size)
 {
-	SDL_SetRenderDrawBlendMode(gApp.renderer, mode);
+	return TTF_OpenFont(path, size);
+}
+
+void UnloadFont(Font* font)
+{
+	TTF_CloseFont(font);
 }
 
 Sound* LoadSound(const char* path)
@@ -184,9 +233,19 @@ void UnloadSound(Sound* sound)
 	Mix_FreeChunk(sound);
 }
 
-void PlaySound(Sound* sound, bool loop)
+int PlaySound(Sound* sound, bool loop)
 {
-	Mix_PlayChannel(-1, sound, loop ? -1 : 0);
+	return Mix_PlayChannel(-1, sound, loop ? -1 : 0);
+}
+
+void PauseChannel(int channel)
+{
+	Mix_Pause(channel);
+}
+
+void ResumeChannel(int channel)
+{
+	Mix_Resume(channel);
 }
 
 Music* LoadMusic(const char* path)
@@ -251,6 +310,11 @@ bool IsRunning()
 	return gApp.running;
 }
 
+void Quit()
+{
+	gApp.running = false;
+}
+
 bool IsKeyDown(SDL_Scancode key)
 {
 	return gApp.keyboardCurrent[key] == 1;
@@ -261,9 +325,29 @@ bool IsKeyPressed(SDL_Scancode key)
 	return gApp.keyboardCurrent[key] > gApp.keyboardPrevious[key];
 }
 
+bool IsMouseDown()
+{
+	return gApp.leftMouseDown;
+}
+
+bool IsMouseMoved()
+{
+	return gApp.mouseMoved;
+}
+
+bool IsMouseClicked()
+{
+	return gApp.leftMouseClicked;
+}
+
 Point MousePosition()
 {
-	return gApp.mousePosition;
+	return { (float)gApp.mx, (float)gApp.my };
+}
+
+Point MouseDelta()
+{
+	return { (float)gApp.mx - (float)gApp.pmx, (float)gApp.my - (float)gApp.pmy };
 }
 
 void DrawLine(const Point& start, const Point& end, const Color& color)
@@ -281,4 +365,27 @@ void DrawRect(const Rect& rect, const Color& color)
 void DrawTexture(Texture* texture, const Rect& rect, float degrees)
 {
 	SDL_RenderCopyExF(gApp.renderer, texture, nullptr, &rect, degrees, nullptr, SDL_FLIP_NONE);
+}
+
+void DrawTexture(Texture* texture, const SDL_Rect& src, const Rect& dst, float degrees)
+{
+	SDL_RenderCopyExF(gApp.renderer, texture, &src, &dst, degrees, nullptr, SDL_FLIP_NONE);
+}
+
+void DrawText(const char* text, float x, float y, Font* font, const Color& color, float degrees)
+{
+	SDL_Surface* surface = TTF_RenderText_Solid(font, text, color);
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(gApp.renderer, surface);
+	DrawTexture(texture, { x, y, (float)surface->w, (float)surface->h }, degrees);
+	SDL_DestroyTexture(texture);
+	SDL_FreeSurface(surface);
+}
+
+void DrawTextCentered(const char* text, float x, float y, Font* font, const Color& color, float degrees)
+{
+	SDL_Surface* surface = TTF_RenderText_Solid(font, text, color);
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(gApp.renderer, surface);
+	DrawTexture(texture, { x - surface->w * 0.5f, y - surface->h * 0.5f, (float)surface->w, (float)surface->h }, degrees);
+	SDL_DestroyTexture(texture);
+	SDL_FreeSurface(surface);
 }
