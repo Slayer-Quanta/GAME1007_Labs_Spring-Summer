@@ -4,6 +4,7 @@
 #include <iostream>
 #include "tinyxml2.h"
 #include "Scene.h"
+#include "Widgets.h"
 using namespace tinyxml2;
 using namespace std;
 
@@ -155,6 +156,7 @@ void OnGui(void* data)
 	}
 }
 
+
 int main(int argc, char* argv[])
 {
 	AppInit(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -162,6 +164,7 @@ int main(int argc, char* argv[])
 	while (IsRunning())
 	{
 		Scene::Update(FrameTime());
+		Widget::Update();
 		RenderBegin();
 		Scene::Render();
 		RenderEnd();

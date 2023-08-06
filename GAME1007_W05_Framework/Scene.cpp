@@ -16,8 +16,8 @@ void Scene::Init()
 	sScenes[GAME] = new GameScene;
 	sScenes[PAUSE] = new PauseScene;
 	sScenes[EXIT] = new ExitScene;*/
-	sScenes[ANIMATION] = new AnimationsScene;
-	sCurrent = ANIMATION;
+	sScenes[BUTTON] = new ButtonsScene;
+	sCurrent = BUTTON;
 	sScenes[sCurrent]->OnEnter();
 }
 
@@ -45,110 +45,191 @@ void Scene::Change(Type type)
 	sCurrent = type;
 	sScenes[sCurrent]->OnEnter();
 }
-
-AnimationsScene::AnimationsScene()
+ButtonsScene::ButtonsScene()
 {
-	mSprites = LoadTexture("../Assets/img/characters.png");
-	mDurations[WALK] = 1.0f;
-	mDurations[RUN] = 0.20f;
+    mFont = LoadFont("../Assets/fonts/Consolas.ttf");
+    mTest.font = mExit.font = mFont;
+    mTest.text = "Test";
+    mExit.text = "Exit";
+    mTest.textColor = { 0, 255, 0, 255 };
+    mExit.textColor = { 255, 0, 0, 255 };
 
-	const int spriteWidth = 32; const int spriteHeight = 32;
-	for (size_t row = 0; row < 4; row++)
-	{
-		Animation animation;
-		animation.texture = mSprites;
-		animation.frames.push_back({ 0, (int)row * spriteHeight, spriteWidth, spriteHeight });
-		animation.frames.push_back({ spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight });
-		animation.frames.push_back({ spriteWidth * 2, (int)row * spriteHeight, spriteWidth, spriteHeight });
-		animation.frames.push_back({ spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight });
+    const float buttonWidth = 60.0f;
+    const float buttonHeight = 40.0f;
+    mTest.rect.w = mExit.rect.w = buttonWidth;
+    mTest.rect.h = mExit.rect.h = buttonHeight;
+    mTest.rect.x = mExit.rect.x = SCREEN_WIDTH * 0.5f - buttonWidth * 0.5f;
+    mTest.rect.y = SCREEN_HEIGHT * 0.50f;
+    mExit.rect.y = SCREEN_HEIGHT * 0.75f;
 
-		mAnimations[row] = animation;
-		mIdleFrames[row] = { spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight };
-	}
+    mTest.SetOnIn([](void* data) {
+        LabelledButton& btn = *(LabelledButton*)data;
+        btn.text = "In";
+        }, &mTest);
+
+    mTest.SetOnOut([](void* data) {
+        LabelledButton& btn = *(LabelledButton*)data;
+        btn.text = "Out";
+        btn.col = { 128, 128, 128, 255 };
+        }, &mTest);
+
+    // Set exit on-in to change color to dark red (196, 128, 128, 255)
+    mExit.SetOnIn([](void* data) {
+        LabelledButton& btn = *(LabelledButton*)data;
+        btn.col = { 196, 128, 128, 255 };
+        }, &mExit);
+
+    // Set exit on-out to change color to white (255, 255, 255, 255)
+    mExit.SetOnOut([](void* data) {
+        LabelledButton& btn = *(LabelledButton*)data;
+        btn.col = { 255, 255, 255, 255 };
+        }, &mExit);
+
+    // Set exit on-click to quit the program (call the Quit() function)
+    mExit.SetOnClick([](void* data) {
+        SDL_Quit();
+        }, &mExit);
 }
 
-AnimationsScene::~AnimationsScene()
+ButtonsScene::~ButtonsScene()
 {
-	UnloadTexture(mSprites);
+    UnloadFont(mFont);
 }
 
-void AnimationsScene::OnEnter()
+void ButtonsScene::OnEnter()
 {
+    Widget::Register(&mTest);
+    Widget::Register(&mExit);
 }
 
-void AnimationsScene::OnExit()
+void ButtonsScene::OnExit()
 {
-}
-void AnimationsScene::OnUpdate(float dt)
-{
-	// Increment offset to switch characters (not necessary for animation)
-	if (IsKeyPressed(SDL_SCANCODE_P))
-	{
-		++mOffset %= mOffsets.size();
-	}
-
-	// Handle direction state
-	Direction previousDirection = mDirection;
-
-	if (IsKeyPressed(SDL_SCANCODE_W))
-	{
-		mDirection = UP;
-	}
-	else if (IsKeyPressed(SDL_SCANCODE_S))
-	{
-		mDirection = DOWN;
-	}
-	else if (IsKeyPressed(SDL_SCANCODE_A))
-	{
-		mDirection = LEFT;
-	}
-	else if (IsKeyPressed(SDL_SCANCODE_D))
-	{
-		mDirection = RIGHT;
-	}
-
-	if (previousDirection != mDirection)
-	{
-		mAnimations[mDirection].Reset();
-	}
-
-	// Handle playback state
-	if (IsKeyPressed(SDL_SCANCODE_LSHIFT))
-	{
-		mState = RUN;
-	}
-	else if (IsKeyPressed(SDL_SCANCODE_W) || IsKeyPressed(SDL_SCANCODE_A) || IsKeyPressed(SDL_SCANCODE_S) || IsKeyPressed(SDL_SCANCODE_D))
-	{
-		mState = WALK;
-	}
-	else
-	{
-		mState = IDLE;
-	}
-
-	if (mState != IDLE)
-	{
-		mAnimations[mDirection].SetDuration(mDurations[mState]);
-		mAnimations[mDirection].offset = mOffsets[mOffset];
-	}
-
-	mAnimations[mDirection].Update(dt);
+    Widget::Unregister(&mTest);
+    Widget::Unregister(&mExit);
 }
 
-
-void AnimationsScene::OnRender()
+void ButtonsScene::OnUpdate(float dt)
 {
-	Rect dst{ SCREEN.w * 0.25f, SCREEN.h * 0.25f, SCREEN.w * 0.5f, SCREEN.h * 0.5f };
-	if (mState != IDLE)
-		mAnimations[mDirection].Render(dst);
-	else
-	{
-		SDL_Rect idleFrame = mIdleFrames[mDirection];
-		idleFrame.x += mOffsets[mOffset].x;
-		idleFrame.y += mOffsets[mOffset].y;
-		DrawTexture(mSprites, idleFrame, dst);
-	}
+    if (mTest.IsMouseOver())
+    {
+        const float tt = TotalTime();
+        float r = cosf(tt + PI * 1.00f * 0.5f) + 0.5f;
+        float g = cosf(tt + PI * 0.33f) * 0.5f + 0.5f;
+        float b = cosf(tt + PI * 0.67f) * 0.5f + 0.5f;
+        Color color{ r * 255, g * 255, b * 255, 255 };
+        mTest.colOver = color;
+    }
 }
+
+void ButtonsScene::OnRender()
+{
+    DrawRect(SCREEN, { 128, 128, 128, 255 });
+    mTest.Render();
+    mExit.Render();
+}
+
+//AnimationsScene::AnimationsScene()
+//{
+//	mSprites = LoadTexture("../Assets/img/characters.png");
+//	mDurations[WALK] = 1.0f;
+//	mDurations[RUN] = 0.20f;
+//
+//	const int spriteWidth = 32; const int spriteHeight = 32;
+//	for (size_t row = 0; row < 4; row++)
+//	{
+//		Animation animation;
+//		animation.texture = mSprites;
+//		animation.frames.push_back({ 0, (int)row * spriteHeight, spriteWidth, spriteHeight });
+//		animation.frames.push_back({ spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight });
+//		animation.frames.push_back({ spriteWidth * 2, (int)row * spriteHeight, spriteWidth, spriteHeight });
+//		animation.frames.push_back({ spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight });
+//
+//		mAnimations[row] = animation;
+//		mIdleFrames[row] = { spriteWidth, (int)row * spriteHeight, spriteWidth, spriteHeight };
+//	}
+//}
+//
+//AnimationsScene::~AnimationsScene()
+//{
+//	UnloadTexture(mSprites);
+//}
+//
+//void AnimationsScene::OnEnter()
+//{
+//}
+//
+//void AnimationsScene::OnExit()
+//{
+//}
+//void AnimationsScene::OnUpdate(float dt)
+//{
+//	// Increment offset to switch characters (not necessary for animation)
+//	if (IsKeyPressed(SDL_SCANCODE_P))
+//	{
+//		++mOffset %= mOffsets.size();
+//	}
+//
+//	// Handle direction state
+//	Direction previousDirection = mDirection;
+//
+//	if (IsKeyPressed(SDL_SCANCODE_W))
+//	{
+//		mDirection = UP;
+//	}
+//	else if (IsKeyPressed(SDL_SCANCODE_S))
+//	{
+//		mDirection = DOWN;
+//	}
+//	else if (IsKeyPressed(SDL_SCANCODE_A))
+//	{
+//		mDirection = LEFT;
+//	}
+//	else if (IsKeyPressed(SDL_SCANCODE_D))
+//	{
+//		mDirection = RIGHT;
+//	}
+//
+//	if (previousDirection != mDirection)
+//	{
+//		mAnimations[mDirection].Reset();
+//	}
+//
+//	// Handle playback state
+//	if (IsKeyPressed(SDL_SCANCODE_LSHIFT))
+//	{
+//		mState = RUN;
+//	}
+//	else if (IsKeyPressed(SDL_SCANCODE_W) || IsKeyPressed(SDL_SCANCODE_A) || IsKeyPressed(SDL_SCANCODE_S) || IsKeyPressed(SDL_SCANCODE_D))
+//	{
+//		mState = WALK;
+//	}
+//	else
+//	{
+//		mState = IDLE;
+//	}
+//
+//	if (mState != IDLE)
+//	{
+//		mAnimations[mDirection].SetDuration(mDurations[mState]);
+//		mAnimations[mDirection].offset = mOffsets[mOffset];
+//	}
+//
+//	mAnimations[mDirection].Update(dt);
+//}
+//
+//
+//void AnimationsScene::OnRender()
+//{
+//	Rect dst{ SCREEN.w * 0.25f, SCREEN.h * 0.25f, SCREEN.w * 0.5f, SCREEN.h * 0.5f };
+//	if (mState != IDLE)
+//		mAnimations[mDirection].Render(dst);
+//	else
+//	{
+//		SDL_Rect idleFrame = mIdleFrames[mDirection];
+//		idleFrame.x += mOffsets[mOffset].x;
+//		idleFrame.y += mOffsets[mOffset].y;
+//		DrawTexture(mSprites, idleFrame, dst);
+//	}
 
 //void TitleScene::OnEnter()
 //{

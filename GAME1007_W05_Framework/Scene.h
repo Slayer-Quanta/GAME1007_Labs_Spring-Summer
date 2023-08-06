@@ -3,6 +3,7 @@
 #include "Animation.h"
 #include <array>
 #include <vector>
+#include "Widgets.h"
 constexpr int SCREEN_WIDTH = 1024;
 constexpr int SCREEN_HEIGHT = 768;
 constexpr Rect SCREEN = { 0.0f, 0.0f, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT };
@@ -25,7 +26,7 @@ public:
 		GAME,
 		PAUSE,
 		EXIT,*/
-		ANIMATION,
+		BUTTON,
 		COUNT
 		
 	};
@@ -60,45 +61,64 @@ private:
 //	Rect mBackgroundRec;
 //	Rect mTitleRec;
 //	Music* TitleMusic;
-//};
-class AnimationsScene : public Scene
-{
-public:
-	AnimationsScene();
-	~AnimationsScene();
-
-	void OnEnter() final;
-	void OnExit() final;
-
-	void OnUpdate(float dt) final;
-	void OnRender() final;
-
-	enum Direction
+////};
+//class AnimationsScene : public Scene
+//{
+//public:
+//	AnimationsScene();
+//	~AnimationsScene();
+//
+//	void OnEnter() final;
+//	void OnExit() final;
+//
+//	void OnUpdate(float dt) final;
+//	void OnRender() final;
+//
+//	enum Direction
+//	{
+//		DOWN,
+//		LEFT,
+//		RIGHT,
+//		UP
+//	} mDirection = DOWN;
+//
+//	enum State
+//	{
+//		WALK,
+//		RUN,
+//		IDLE
+//	} mState = IDLE;
+//
+//	Texture* mSprites = nullptr;
+//	std::array<SDL_Rect, 4> mIdleFrames;
+//	std::array<Animation, 4> mAnimations;
+//	std::array<float, 2> mDurations;
+//
+//	// Not necessary for animation, but gives us character-switching!
+//	size_t mOffset = 0;
+//	std::array<SDL_Point, 8> mOffsets{
+//		SDL_Point{0, 0}, SDL_Point{96, 0}, SDL_Point{ 192, 0 }, SDL_Point{ 288, 0 },
+//		SDL_Point{0, 128}, SDL_Point{96, 128 }, SDL_Point{ 192, 128 }, SDL_Point{ 288, 128 }
+//	};
+	class ButtonsScene : public Scene
 	{
-		DOWN,
-		LEFT,
-		RIGHT,
-		UP
-	} mDirection = DOWN;
+	public:
+		ButtonsScene();
+		~ButtonsScene();
 
-	enum State
-	{
-		WALK,
-		RUN,
-		IDLE
-	} mState = IDLE;
+		void OnEnter() final;
+		void OnExit() final;
 
-	Texture* mSprites = nullptr;
-	std::array<SDL_Rect, 4> mIdleFrames;
-	std::array<Animation, 4> mAnimations;
-	std::array<float, 2> mDurations;
+		void OnUpdate(float dt) final;
+		void OnRender() final;
 
-	// Not necessary for animation, but gives us character-switching!
-	size_t mOffset = 0;
-	std::array<SDL_Point, 8> mOffsets{
-		SDL_Point{0, 0}, SDL_Point{96, 0}, SDL_Point{ 192, 0 }, SDL_Point{ 288, 0 },
-		SDL_Point{0, 128}, SDL_Point{96, 128 }, SDL_Point{ 192, 128 }, SDL_Point{ 288, 128 }
+	private:
+		Font* mFont;
+
+		LabelledButton mTest;
+		LabelledButton mExit;
 	};
+
 	//class GameScene : public Scene
 	//{
 	//public:
@@ -241,4 +261,3 @@ public:
 	//	void OnUpdate(float dt) final;
 	//	void OnRender() final;
 	//};
-};

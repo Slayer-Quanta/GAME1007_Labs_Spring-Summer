@@ -2,7 +2,7 @@
 #include "Core.h"
 #include <string>
 #include <vector>
-
+#include <algorithm>
 // Add button integer if we want more than left-click
 using OnMouseClick = void(*)(void* data);	// Called when mouse is inside the widget and clicked
 using OnMouseOver = void(*)(void* data);	// Called when mouse is inside the widget
@@ -44,6 +44,7 @@ private:
 	void* mMouseInData = nullptr;
 
 	static std::vector<Widget*> sWidgets;
+
 };
 
 class Button : public Widget

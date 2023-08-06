@@ -53,40 +53,33 @@ void Widget::ClearRegistry()
 	sWidgets.clear();
 }
 
+
 void Widget::Update()
 {
+	
 	if (IsMouseMoved())
 	{
 		for (Widget* widget : sWidgets)
 		{
-			Point mouse = MousePosition();
-			bool over = SDL_PointInFRect(&mouse, &widget->rect);
-
-			if (over)
+			Point Mouse = MousePosition();
+			bool over = false;
+			if (SDL_PointInFRect(&Mouse, &widget->rect))
 			{
-				// If the mouse previously wasn't over the widget, invoke mouse-in callback
+				over = true;
+
+				if (widget->mMouseOver != over && widget->mOnMouseOver != nullptr)
+					widget->mOnMouseOver(widget->mMouseOverData);
+
 				if (!widget->mMouseOver && widget->mOnMouseIn != nullptr)
 					widget->mOnMouseIn(widget->mMouseInData);
 			}
 			else
 			{
-				// If the mouse previously was over the widget, invoke mouse-out callback
 				if (widget->mMouseOver && widget->mOnMouseOut != nullptr)
 					widget->mOnMouseOut(widget->mMouseOutData);
 			}
 
-			if (over && widget->mOnMouseOver != nullptr)
-				widget->mOnMouseOver(widget->mMouseOverData);
 			widget->mMouseOver = over;
-		}
-	}
-
-	if (IsMouseClicked())
-	{
-		for (Widget* widget : sWidgets)
-		{
-			if (widget->mMouseOver && widget->mOnMouseClick != nullptr)
-				widget->mOnMouseClick(widget->mMouseClickData);
 		}
 	}
 }
