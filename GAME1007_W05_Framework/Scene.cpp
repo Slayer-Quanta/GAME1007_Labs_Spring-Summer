@@ -12,6 +12,7 @@ std::array<Scene*, Scene::COUNT> Scene::sScenes;
 
 void Scene::Init()
 {
+
 	/*sScenes[TITLE] = new TitleScene;
 	sScenes[GAME] = new GameScene;
 	sScenes[PAUSE] = new PauseScene;
