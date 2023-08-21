@@ -84,16 +84,16 @@ public:
 	Rect mShipRec;
 	float mShipSpeed;
 	float mShipRotation;  // Add this line
-	float mDistanceTravelled = 0.0f;
+	float mDistanceTravelled = .0f;
 	bool mAchievedSoundPlayed = false;
 	Texture* mShipSpriteSheetTex = nullptr;
 	Texture* mAsteroidTex = nullptr;
 	Texture* mAsteroidClusterTex = nullptr;
 	Texture* mGameBackgroundTex = nullptr;
 	Texture* mBulletTex = nullptr;
-	float mSurvivalTimer = 0.0f;
+	float mSurvivalTimer = 5.0f;
 	const float OVERTIME_THRESHOLD = 10.0f;
-	int mShotCount = 0;
+	int mShotCount = 10;
 
 
 	Sound* mAchievementSound;

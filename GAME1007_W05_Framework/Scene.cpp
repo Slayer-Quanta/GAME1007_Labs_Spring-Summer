@@ -212,14 +212,15 @@ GameScene::~GameScene()
 void GameScene::OnEnter()
 {
 	Bindings::Load();
-	/*Mix_Music* GameMusic = Mix_LoadMUS("../Assets/aud/Wings.mp3");
+	Mix_Music* GameMusic = Mix_LoadMUS("../Assets/aud/Wings.mp3");
 	if (GameMusic)
 	{
 		Mix_PlayMusic(GameMusic, -1);
-	}*/
+	}
 	mBulletSound = Mix_LoadWAV("../Assets/aud/Ciws .mp3");
 	mTeleportSound = Mix_LoadWAV("../Assets/aud/teleport.wav");
 	mAchievementSound = Mix_LoadWAV("../Assets/aud/Ping.wav");
+	mAchievedSound = Mix_LoadWAV("../Assets/aud/Achieved.wav");
 	XMLDocument doc;
 	if (doc.LoadFile("Game.xml") == XML_SUCCESS)
 	{
@@ -276,6 +277,7 @@ void GameScene::OnExit()
 	Mix_FreeChunk(mBulletSound);
 	Mix_FreeChunk(mTeleportSound);
 	Mix_FreeChunk(mAchievementSound);
+	Mix_FreeChunk(mAchievedSound);
 	XMLDocument doc;
 	XMLNode* root = doc.NewElement("Game");
 	doc.InsertEndChild(root);
@@ -366,14 +368,13 @@ void GameScene::OnUpdate(float dt)
 	mDistanceTravelled += Length(mShip.velocity) * dt;
 
 	// Check for Warp Speed achievement
-	if (mDistanceTravelled >= 10.0f && !Achievements::Get(WARP_DRIVE) && !mAchievedSoundPlayed)
+	if (mDistanceTravelled >= 1000.0f && !Achievements::Get(WARP_DRIVE) && !mAchievedSoundPlayed)
 	{
 		Achievements::Set(WARP_DRIVE, true);
 		if (mAchievementSound)
 		{
 			Mix_PlayChannel(-1, mAchievementSound, 0);
 		}
-		// Mark the sound as played
 		mAchievedSoundPlayed = true;
 	}
 
@@ -435,7 +436,6 @@ void GameScene::OnUpdate(float dt)
 			// Calculate the interpolation factor (0.0 to 1.0) based on the elapsed time
 			float t = elapsed / teleportDuration;
 
-			// Smoothly move the ship towards the teleport destination
 			mShip.position = Lerp(initialPosition, targetPosition, t);
 
 			elapsed += dt;
@@ -449,10 +449,10 @@ void GameScene::OnUpdate(float dt)
 	if (isFiring && !mIsFiring && mShip.bulletCooldown.Expired())
 	{
 		mShip.bulletCooldown.Reset();
-		if (mBulletSound)
+	/*	if (mBulletSound)
 		{
 			Mix_PlayChannel(-1, mBulletSound, 0);
-		}
+		}*/
 		// Use the ship's rotation angle
 		float bulletRotation = atan2(mShip.direction.y, mShip.direction.x) * RAD2DEG + mShipRotation;
 		Point bulletDirection = Rotate(Point{ 1.0f, 0.0f }, bulletRotation * DEG2RAD);
@@ -534,15 +534,15 @@ void GameScene::OnUpdate(float dt)
 			return;
 		}
 	}
+
 	// Check for Overtime achievement
-	if (mSurvivalTimer >= OVERTIME_THRESHOLD && !Achievements::Get(OVERTIME) && !mAchievedSoundPlayed)
+	if (mSurvivalTimer >= 10.0f && !Achievements::Get(OVERTIME) && !mAchievedSoundPlayed)
 	{
 		Achievements::Set(OVERTIME, true);
 		if (mAchievementSound)
 		{
 			Mix_PlayChannel(-1, mAchievementSound, 0);
 		}
-		// Mark the sound as played
 		mAchievedSoundPlayed = true;
 	}
 
@@ -694,7 +694,7 @@ void GameScene::OnUpdate(float dt)
 			return asteroid.health <= 0.0f;
 		}), mAsteroidsSmall.end());
 
-	if (mAsteroidsDestroyed >= 25 && !Achievements::Get(EXCAVATOR) && !mAchievedSoundPlayed)
+	if (mAsteroidsDestroyed >= 3 && !Achievements::Get(EXCAVATOR) && !mAchievedSoundPlayed)
 	{
 		Achievements::Set(EXCAVATOR, true);
 		if (mAchievementSound)
