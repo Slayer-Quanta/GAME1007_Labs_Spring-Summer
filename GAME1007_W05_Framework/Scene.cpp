@@ -14,7 +14,6 @@ void Scene::Init()
 {
 	sScenes[TITLE] = new TitleScene;
 	sScenes[GAME] = new GameScene;
-	sScenes[ACHIEVE] = new AchievementScene;
 	sScenes[PAUSE] = new PauseScene;
 	sScenes[EXIT] = new ExitScene;
 	sCurrent = TITLE;
@@ -313,7 +312,6 @@ void GameScene::OnExit()
 
 	doc.SaveFile("Game.xml");
 }
-
 void GameScene::OnUpdate(float dt)
 {
 
@@ -354,30 +352,30 @@ void GameScene::OnUpdate(float dt)
 		}
 	}
 
-	if (IsKeyDown(Bindings::Get(THRUST)))
-	{
-		mShip.velocity.y += mShip.acceleration * dt;
-		float maxSpeed = 800.0f;
-		if (mShip.velocity.y > maxSpeed)
-		{
-			mShip.velocity.y = maxSpeed;
-		}
-	}
+	//if (IsKeyDown(Bindings::Get(THRUST)))
+	//{
+	//	mShip.velocity.y += mShip.acceleration * dt;
+	//	float maxSpeed = 800.0f;
+	//	if (mShip.velocity.y > maxSpeed)
+	//	{
+	//		mShip.velocity.y = maxSpeed;
+	//	}
+	//}
 	mShip.position = mShip.position + mShip.velocity * dt;
 
-	//mDistanceTravelled += Length(mShip.velocity) * dt;
+	mDistanceTravelled += Length(mShip.velocity) * dt;
 
-	//// Check for Warp Speed achievement
-	//if (mDistanceTravelled >= 10.0f && !Achievements::Get(WARP_DRIVE) && !mAchievedSoundPlayed)
-	//{
-	//	Achievements::Set(WARP_DRIVE, true);
-	//	if (mAchievementSound)
-	//	{
-	//		Mix_PlayChannel(-1, mAchievementSound, 0);
-	//	}
-	//	// Mark the sound as played
-	//	mAchievedSoundPlayed = true;
-	//}
+	// Check for Warp Speed achievement
+	if (mDistanceTravelled >= 10.0f && !Achievements::Get(WARP_DRIVE) && !mAchievedSoundPlayed)
+	{
+		Achievements::Set(WARP_DRIVE, true);
+		if (mAchievementSound)
+		{
+			Mix_PlayChannel(-1, mAchievementSound, 0);
+		}
+		// Mark the sound as played
+		mAchievedSoundPlayed = true;
+	}
 
 	Wrap(mShip);
 
@@ -455,7 +453,7 @@ void GameScene::OnUpdate(float dt)
 		{
 			Mix_PlayChannel(-1, mBulletSound, 0);
 		}
-		 // Use the ship's rotation angle
+		// Use the ship's rotation angle
 		float bulletRotation = atan2(mShip.direction.y, mShip.direction.x) * RAD2DEG + mShipRotation;
 		Point bulletDirection = Rotate(Point{ 1.0f, 0.0f }, bulletRotation * DEG2RAD);
 
@@ -465,10 +463,25 @@ void GameScene::OnUpdate(float dt)
 		bullet.velocity = bulletDirection * 800.0f;
 		bullet.direction = bulletDirection;
 		mBullets.push_back(bullet);
+
+		// Increment the shot count
+		mShotCount++;
 	}
 
 	mIsFiring = isFiring;
 	mShip.bulletCooldown.Tick(dt);
+	// Check for Trigger Happy achievement
+	if (mShotCount >= 10 && !Achievements::Get(TRIGGER_HAPPY) && !mAchievedSoundPlayed)
+	{
+		Achievements::Set(TRIGGER_HAPPY, true);
+		if (mAchievementSound)
+		{
+			Mix_PlayChannel(-1, mAchievementSound, 0);
+		}
+		// Mark the sound as played
+		mAchievedSoundPlayed = true;
+	}
+
 	if (IsKeyDown(SDL_SCANCODE_E))
 	{
 
@@ -563,6 +576,10 @@ void GameScene::OnUpdate(float dt)
 
 				mAsteroidsMedium.push_back(medasteroid1);
 				mAsteroidsMedium.push_back(medasteroid2);
+				if (asteroid.health <= 0.0f)
+				{
+					mAsteroidsDestroyed++;
+				}
 			}
 		}
 
@@ -591,6 +608,10 @@ void GameScene::OnUpdate(float dt)
 
 				mAsteroidsSmall.push_back(asteroid1);
 				mAsteroidsSmall.push_back(asteroid2);
+				if (asteroid.health <= 0.0f)
+				{
+					mAsteroidsDestroyed++;
+				}
 			}
 		}
 	}
@@ -617,7 +638,7 @@ void GameScene::OnUpdate(float dt)
 	{
 		mAsteroidTimer.Reset();
 		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge));
-		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge)); 
+		mAsteroidsLarge.push_back(SpawnAsteroid(mSizeLarge));
 	}
 	mAsteroidTimer.Tick(dt);
 
@@ -655,7 +676,6 @@ void GameScene::OnUpdate(float dt)
 					return true;
 				}
 			}
-
 			return false;
 		}), mBullets.end());
 
@@ -673,8 +693,30 @@ void GameScene::OnUpdate(float dt)
 		{
 			return asteroid.health <= 0.0f;
 		}), mAsteroidsSmall.end());
-}
 
+	if (mAsteroidsDestroyed >= 25 && !Achievements::Get(EXCAVATOR) && !mAchievedSoundPlayed)
+	{
+		Achievements::Set(EXCAVATOR, true);
+		if (mAchievementSound)
+		{
+			Mix_PlayChannel(-1, mAchievementSound, 0);
+		}
+		mAchievedSoundPlayed = true;
+	}
+	if (Achievements::Get(TRIGGER_HAPPY) && Achievements::Get(EXCAVATOR) &&
+		Achievements::Get(OVERTIME) && Achievements::Get(WARP_DRIVE) &&
+		!Achievements::Get(SPACE_ADMIRAL) && !mAchievedSoundPlayed)
+	{
+		Achievements::Set(SPACE_ADMIRAL, true);
+		if (mAchievedSound)
+		{
+			Mix_PlayChannel(-1, mAchievedSound, 0);
+		}
+
+		mAchievedSoundPlayed = true;
+	}
+
+}
 void GameScene::OnRender()
 {
 	DrawTexture(mGameBackgroundTex, { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT });
@@ -832,18 +874,3 @@ void ExitScene::OnRender()
 	//dont need it cause we are closing the game
 }
 
-void AchievementScene::OnEnter()
-{
-}
-
-void AchievementScene::OnExit()
-{
-}
-
-void AchievementScene::OnUpdate(float dt)
-{
-}
-
-void AchievementScene::OnRender()
-{
-}

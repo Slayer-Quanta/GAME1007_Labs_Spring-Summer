@@ -28,10 +28,9 @@ public:
 		TITLE,
 		GAME,
 		PAUSE,
-		ACHIEVE,
 		EXIT,
 		COUNT
-		
+
 	};
 
 	static void Init();
@@ -69,141 +68,135 @@ private:
 	LabelledButton mExit;
 	LabelledButton mAchievement;
 };
-	class GameScene : public Scene
+class GameScene : public Scene
+{
+public:
+	GameScene();
+	~GameScene() final;
+
+	void OnEnter() final;
+	void OnExit() final;
+	void OnUpdate(float dt) final;
+	void OnRender() final;
+	void ResetGame();
+
+	Texture* mShipTex = nullptr;
+	Rect mShipRec;
+	float mShipSpeed;
+	float mShipRotation;  // Add this line
+	float mDistanceTravelled = 0.0f;
+	bool mAchievedSoundPlayed = false;
+	Texture* mShipSpriteSheetTex = nullptr;
+	Texture* mAsteroidTex = nullptr;
+	Texture* mAsteroidClusterTex = nullptr;
+	Texture* mGameBackgroundTex = nullptr;
+	Texture* mBulletTex = nullptr;
+	float mSurvivalTimer = 0.0f;
+	const float OVERTIME_THRESHOLD = 10.0f;
+	int mShotCount = 0;
+
+
+	Sound* mAchievementSound;
+	Sound* mAchievedSound;
+	Sound* mBulletSound;
+	bool mIsFiring;
+	Rect mGameBackgroundRec;
+	Music* GameMusic;
+	Sound* mTeleportSound;
+	struct Timer
 	{
-	public:
-		GameScene();
-		~GameScene() final;
-	
-		void OnEnter() final;
-		void OnExit() final;
-		void OnUpdate(float dt) final;
-		void OnRender() final;
-		void ResetGame();
-	
-		Texture* mShipTex = nullptr;
-		Rect mShipRec;
-		float mShipSpeed;
-		float mShipRotation;  // Add this line
-		float mDistanceTravelled = 0.0f;
-		bool mAchievedSoundPlayed = false;
-		Texture* mShipSpriteSheetTex = nullptr;
-		Texture* mAsteroidTex = nullptr;
-		Texture* mAsteroidClusterTex = nullptr;
-		Texture* mGameBackgroundTex = nullptr;
-		Texture* mBulletTex = nullptr;
-		float mSurvivalTimer = 0.0f;
-		const float OVERTIME_THRESHOLD = 10.0f;
+		float duration = 0.0f;
+		float elapsed = 0.0f;
 
-
-		Sound* mAchievementSound;
-		Sound* mBulletSound;
-		bool mIsFiring;
-		Rect mGameBackgroundRec;
-		Music* GameMusic;
-		Sound* mTeleportSound;
-		struct Timer
-		{
-			float duration = 0.0f;	
-			float elapsed = 0.0f;
-	
-			bool Expired() { return elapsed >= duration; }
-			void Reset() { elapsed = 0.0f; }
-			void Tick(float dt) { elapsed += dt; }
-			float Normalize() { return Clamp(elapsed / duration, 0.0f, 1.0f); }
-		};
-	
-		struct Rigidbody
-		{
-			Point position{};
-			Point velocity{};
-			Point acceleration{};
-			Point thrust{};
-			Point Rotation{};
-			Point direction{ 1.0f, 0.0f };
-			float angularSpeed = 300.0f;
-		};
-	
-		struct Entity : public Rigidbody
-		{
-			float width = 0.0f;
-			float height = 0.0f;
-	
-			Rect Collider() const
-			{
-				return { position.x - width * 0.5f, position.y - height * 0.5f, width, height };
-			}
-
-		};
-	
-		struct Bullet : public Entity
-		{
-			
-			float damage = 100.0f;
-			void Draw(float shipRotation) const
-			{
-				Color bulletColor = { 255, 0, 0, 255 };
-				DrawRect(Collider(), bulletColor);
-				DrawLine(position, position + direction * 20.0f, bulletColor);
-			}
-		};
-	
-		// Add on to this class if necessary
-		struct Asteroid : public Entity
-		{
-			float health = 100.0f;
-			void Draw() const
-			{
-				Color asteroidColor = { 255, 0, 255, 255 };
-				DrawRect(Collider(), asteroidColor);
-				DrawLine(position, position + direction * 20.0f, asteroidColor);
-			}
-		};
-	
-		struct Ship : public Entity
-		{
-			float speed = 100.0f;
-			float acceleration;           // Acceleration in the forward direction
-			float sidewaysAcceleration;
-			float rotation;
-			void Draw() const
-			{
-				DrawRect(Collider(), col);
-				DrawTexture(tex, Collider());
-				DrawLine(position, position + direction * 100.0f, col);
-	
-			}
-	
-			Timer bulletCooldown;
-			Texture* tex = nullptr;
-			Color col{};
-		} mShip;
-	
-		Color mTestColor{ 255, 255, 255, 255 };
-		std::vector<Bullet> mBullets;
-		Timer mAsteroidTimer;
-		std::vector<Asteroid> mAsteroids;
-		std::vector<Asteroid> mAsteroidsLarge;
-		std::vector<Asteroid> mAsteroidsMedium;
-		std::vector<Asteroid> mAsteroidsSmall;
-		const float mSizeLarge = 75.0f;
-		const float mSizeMedium = 50.0f;
-		const float mSizeSmall = 25.0f;
-	
-		Asteroid SpawnAsteroid(float size);
-		void Wrap(Entity& entity);
-		
+		bool Expired() { return elapsed >= duration; }
+		void Reset() { elapsed = 0.0f; }
+		void Tick(float dt) { elapsed += dt; }
+		float Normalize() { return Clamp(elapsed / duration, 0.0f, 1.0f); }
 	};
-	
-	class AchievementScene : public Scene
+
+	struct Rigidbody
 	{
-	public:
-		void OnEnter() final;
-		void OnExit() final;
-
-		void OnUpdate(float dt) final;
-		void OnRender() final;
+		Point position{};
+		Point velocity{};
+		Point acceleration{};
+		Point thrust{};
+		Point Rotation{};
+		Point direction{ 1.0f, 0.0f };
+		float angularSpeed = 300.0f;
 	};
+
+	struct Entity : public Rigidbody
+	{
+		float width = 0.0f;
+		float height = 0.0f;
+
+		Rect Collider() const
+		{
+			return { position.x - width * 0.5f, position.y - height * 0.5f, width, height };
+		}
+
+	};
+
+	struct Bullet : public Entity
+	{
+
+		float damage = 100.0f;
+		void Draw(float shipRotation) const
+		{
+			Color bulletColor = { 255, 0, 0, 255 };
+			DrawRect(Collider(), bulletColor);
+			DrawLine(position, position + direction * 20.0f, bulletColor);
+		}
+	};
+
+	// Add on to this class if necessary
+	struct Asteroid : public Entity
+	{
+		float health = 100.0f;
+		void Draw() const
+		{
+			Color asteroidColor = { 255, 0, 255, 255 };
+			DrawRect(Collider(), asteroidColor);
+			DrawLine(position, position + direction * 20.0f, asteroidColor);
+		}
+	};
+
+	struct Ship : public Entity
+	{
+		float speed = 100.0f;
+		float acceleration;           // Acceleration in the forward direction
+		float sidewaysAcceleration;
+		float rotation;
+		void Draw() const
+		{
+			DrawRect(Collider(), col);
+			DrawTexture(tex, Collider());
+			DrawLine(position, position + direction * 100.0f, col);
+
+		}
+
+		Timer bulletCooldown;
+		Texture* tex = nullptr;
+		Color col{};
+	} mShip;
+
+	Color mTestColor{ 255, 255, 255, 255 };
+	std::vector<Bullet> mBullets;
+	Timer mAsteroidTimer;
+	std::vector<Asteroid> mAsteroids;
+	std::vector<Asteroid> mAsteroidsLarge;
+	std::vector<Asteroid> mAsteroidsMedium;
+	std::vector<Asteroid> mAsteroidsSmall;
+	const float mSizeLarge = 75.0f;
+	const float mSizeMedium = 50.0f;
+	const float mSizeSmall = 25.0f;
+	int mAsteroidsDestroyed = 0;
+
+	Asteroid SpawnAsteroid(float size);
+	void Wrap(Entity& entity);
+
+};
+
 
 	class PauseScene : public Scene
 	{

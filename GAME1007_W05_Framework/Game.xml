@@ -1,8 +1,10 @@
 <Game>
-    <Ship x="763.90045" y="384" w="50" h="40" speed="200"/>
+    <Ship x="465.46466" y="63.206146" w="50" h="40" speed="200"/>
     <MediumAsteroids>
         <Asteroid x="990.88312" y="627.47961"/>
         <Asteroid x="990.88312" y="101.13266"/>
+        <Asteroid x="907.49902" y="354.82803"/>
+        <Asteroid x="944.31537" y="275.87512"/>
     </MediumAsteroids>
     <SmallAsteroids/>
 </Game>
